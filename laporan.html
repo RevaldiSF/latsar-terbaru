@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan - Sistem Terminal</title>
+  <?!= include('styles') ?>
+</head>
+<body>
+<script>var _token = '<?= token ?>';</script>
+<div class="wrapper">
+  <?!= include('sidebar') ?>
+
+  <div class="main-content">
+    <div class="page-header">
+      <h1>📄 Cetak Laporan Bulanan</h1>
+      <p>Rekapitulasi pencatatan arus AKAP / AKDP</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Filter Laporan</div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label>Terminal</label>
+          <select id="filterTerminal">
+            <option value="PURBALINGGA">Purbalingga</option>
+            <option value="BANJARNEGARA">Banjarnegara</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Layanan</label>
+          <select id="filterLayanan">
+            <option value="AKAP">AKAP</option>
+            <option value="AKDP">AKDP</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Bulan</label>
+          <select id="filterBulan">
+            <option value="1">Januari</option>
+            <option value="2">Februari</option>
+            <option value="3">Maret</option>
+            <option value="4">April</option>
+            <option value="5">Mei</option>
+            <option value="6">Juni</option>
+            <option value="7">Juli</option>
+            <option value="8">Agustus</option>
+            <option value="9">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tahun</label>
+          <select id="filterTahun"></select>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" onclick="previewLaporan()">🔍 Preview</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;">
+        <button class="btn btn-success" onclick="cetakPDF()">🖨️ Cetak PDF</button>
+        <button class="btn btn-warning" onclick="cetakExcelBiasa()">📊 Download Excel</button>
+        <button class="btn btn-primary" id="btnCetakSemua" onclick="cetakExcelLengkap()" style="background:#6a1b9a;">
+          📦 Cetak Keseluruhan (Excel)
+        </button>
+      </div>
+      <p style="font-size:12px;color:#777;margin-top:8px;">
+        ⚡ "Cetak Keseluruhan" akan menghasilkan 1 file Excel berisi semua sheet (Rekap AKAP, Rekap AKDP, Rekap Pengunjung, dan data harian per hari)
+      </p>
+    </div>
+
+    <div class="alert alert-info" id="alertInfo" style="display:none;"></div>
+    <div class="alert alert-error" id="alertError" style="display:none;"></div>
+    <div class="alert alert-success" id="alertSuccess" style="display:none;"></div>
+
+    <div class="card" id="previewArea" style="display:none;">
+      <div id="isiLaporan"></div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .laporan-wrapper { font-family: Calibri, 'Segoe UI', sans-serif; font-size: 11px; color: #000; }
+  .laporan-judul { text-align: center; font-weight: bold; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; }
+  .laporan-info { margin-bottom: 10px; }
+  .laporan-info table, .laporan-info td { border: none !important; background: none !important; padding: 2px 5px; text-align: left; }
+  .laporan-info tr:hover td { background: none !important; }
+  .label-layanan { position: absolute; right: 0; top: 0; border: 2px solid #000; padding: 5px 15px; font-weight: bold; font-size: 13px; }
+  .laporan-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .laporan-table th, .laporan-table td { border: 1px solid #000; padding: 4px 6px; text-align: center; background: none; color: #000; }
+  .laporan-table th { background: #d9d9d9 !important; font-weight: bold; }
+  .laporan-table tr:hover td { background: none !important; }
+  .laporan-table .total-row td { font-weight: bold; background: #f0f0f0 !important; }
+  .ttd-area {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .ttd-inner {
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.8;
+    min-width: 250px;
+  }
+  @media print {
+    .sidebar, .page-header, .card:first-child { display: none !important; }
+    #alertInfo, #alertError, #alertSuccess { display: none !important; }
+    .main-content { margin-left: 0 !important; padding: 10px !important; }
+    .card { box-shadow: none !important; border: none !important; padding: 0 !important; }
+    body { background: white !important; }
+  }
+</style>
+
+<script>
+  var _session = {};
+  try { _session = JSON.parse('<?= session ?>'); } catch(e) {}
+
+  setActiveMenu('menuLaporan');
+
+  setActiveMenu('laporan');
+
+  var now = new Date();
+  var tahunSelect = document.getElementById('filterTahun');
+  for (var y = now.getFullYear(); y >= 2024; y--) {
+    var opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    tahunSelect.appendChild(opt);
+  }
+  document.getElementById('filterBulan').value = now.getMonth() + 1;
+  document.getElementById('filterTahun').value = now.getFullYear();
+
+  var BULAN_NAMA = ['','Januari','Februari','Maret','April','Mei','Juni',
+    'Juli','Agustus','September','Oktober','November','Desember'];
+  var dataLaporan = [];
+
+  function showAlert(type, msg) {
+    ['alertInfo','alertError','alertSuccess'].forEach(function(id) {
+      document.getElementById(id).style.display = 'none';
+    });
+    var id = type === 'error' ? 'alertError' : type === 'success' ? 'alertSuccess' : 'alertInfo';
+    var el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function previewLaporan() {
+    var terminal = document.getElementById('filterTerminal').value;
+    var layanan = document.getElementById('filterLayanan').value;
+    var bulan = document.getElementById('filterBulan').value;
+    var tahun = document.getElementById('filterTahun').value;
+
+    document.getElementById('isiLaporan').innerHTML = '<div class="loading"><span class="spinner"></span> Memuat data...</div>';
+    document.getElementById('previewArea').style.display = 'block';
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        dataLaporan = data;
+        renderLaporan(data, terminal, layanan, bulan, tahun);
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById('isiLaporan').innerHTML = '<p style="color:red;">Error: ' + err.message + '</p>';
+      })
+      .getRekapBulanan(terminal, layanan, bulan, tahun);
+  }
+
+function renderLaporan(data, terminal, layanan, bulan, tahun) {
+  var isAKDP = layanan === 'AKDP';
+  var bulanNama = BULAN_NAMA[parseInt(bulan)];
+
+  var tot = { jml_po:0, bus_msk:0, bus_klr:0, BK:0, BS:0, BB:0, MPU:0, seat:0, penumpang:0, pnp_naik:0, pnp_turun:0, laik:0, tidak_laik:0 };
+
+  data.forEach(function(r) {
+    tot.jml_po = Math.max(tot.jml_po, Number(r.jml_po)||0);
+    tot.bus_msk += Number(r.bus_msk)||0;
+    tot.bus_klr += Number(r.bus_klr)||0;
+    tot.BK += Number(r.BK)||0;
+    tot.BS += Number(r.BS)||0;
+    tot.BB += Number(r.BB)||0;
+    tot.MPU += Number(r.MPU)||0;
+    tot.seat += Number(r.seat)||0;
+    tot.penumpang += Number(r.penumpang)||0;
+    tot.pnp_naik += Number(r.pnp_naik)||0;
+    tot.pnp_turun += Number(r.pnp_turun)||0;
+    tot.laik += Number(r.laik_jalan)||0;
+    tot.tidak_laik += Number(r.tidak_laik)||0;
+  });
+
+  var totalLF = tot.seat > 0 ? ((tot.penumpang/tot.seat)*100).toFixed(2)+'%' : '0%';
+  var kolomMPU = isAKDP ? '<th rowspan="2">MPU</th>' : '';
+  var kolomMPUTot = isAKDP ? '<td>' + tot.MPU + '</td>' : '';
+
+  var rows = '';
+  data.forEach(function(r, i) {
+    var lf = Number(r.seat) > 0 ? ((Number(r.penumpang)/Number(r.seat))*100).toFixed(2)+'%' : '0%';
+    rows += '<tr>' +
+      '<td>' + (i+1) + '</td><td>' + r.tanggal + '</td><td>' + r.jml_po + '</td>' +
+      '<td>' + r.bus_msk + '</td><td>' + r.bus_klr + '</td>' +
+      '<td>' + r.BK + '</td><td>' + r.BS + '</td><td>' + r.BB + '</td>' +
+      (isAKDP ? '<td>' + r.MPU + '</td>' : '') +
+      '<td>' + r.seat + '</td><td>' + r.penumpang + '</td><td>' + lf + '</td>' +
+      '<td>' + r.pnp_turun + '</td><td>' + r.pnp_naik + '</td>' +
+      '<td>' + r.laik_jalan + '</td><td>' + r.tidak_laik + '</td><td></td>' +
+      '</tr>';
+  });
+
+  var html =
+    '<div class="laporan-wrapper" id="printArea">' +
+
+      // Judul tengah
+      '<div style="text-align:center;font-weight:bold;font-size:13px;text-transform:uppercase;line-height:1.6;margin-bottom:8px;">' +
+        'REKAPITULASI PENCATATAN ARUS ' + layanan + '<br>' +
+        'TERMINAL ' + terminal.toUpperCase() +
+      '</div>' +
+
+      // Info rata kiri
+      '<table style="font-size:11px;margin-bottom:8px;">' +
+        '<tr>' +
+          '<td style="border:none;background:none;padding:1px 0;font-weight:bold;width:80px;">BULAN</td>' +
+          '<td style="border:none;background:none;padding:1px 5px;">: ' + bulanNama.toUpperCase() + '</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="border:none;background:none;padding:1px 0;font-weight:bold;">TERMINAL</td>' +
+          '<td style="border:none;background:none;padding:1px 5px;">: ' + terminal.toUpperCase() + '</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="border:none;background:none;padding:1px 0;font-weight:bold;">KAB / KOTA</td>' +
+          '<td style="border:none;background:none;padding:1px 5px;">: ' + terminal.toUpperCase() + '</td>' +
+        '</tr>' +
+      '</table>' +
+
+      // Kotak AKAP/AKDP di atas kolom KETERANGAN (pojok kanan, sebelum tabel)
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:2px;">' +
+        '<div style="border:2px solid #000;padding:3px 12px;font-weight:bold;font-size:12px;display:inline-block;">' +
+          layanan +
+        '</div>' +
+      '</div>' +
+
+      // Tabel
+      '<table class="laporan-table"><thead>' +
+        '<tr>' +
+          '<th rowspan="2">NO</th>' +
+          '<th rowspan="2">TANGGAL</th>' +
+          '<th rowspan="2">JUMLAH PO</th>' +
+          '<th colspan="2">KENDARAAN</th>' +
+          '<th colspan="' + (isAKDP ? 4 : 3) + '">JENIS BUS</th>' +
+          '<th rowspan="2">JUMLAH SEAT TERSEDIA</th>' +
+          '<th rowspan="2">JUMLAH PNP</th>' +
+          '<th rowspan="2">LOAD FACTOR (%)</th>' +
+          '<th colspan="2">PENUMPANG</th>' +
+          '<th colspan="2">KONDISI KENDARAAN</th>' +
+          '<th rowspan="2">KETERANGAN</th>' +
+        '</tr>' +
+        '<tr>' +
+          '<th>MASUK</th><th>KELUAR</th>' +
+          '<th>BK</th><th>BS</th><th>BB</th>' +
+          kolomMPU +
+          '<th>TURUN</th><th>NAIK</th>' +
+          '<th>LAIK JALAN</th><th>TDK LAIK JALAN</th>' +
+        '</tr>' +
+      '</thead>' +
+      '<tbody>' + (rows || '<tr><td colspan="20" style="text-align:center;">Belum ada data</td></tr>') + '</tbody>' +
+      '<tfoot><tr class="total-row">' +
+        '<td colspan="2">JUMLAH :</td>' +
+        '<td>' + tot.jml_po + '</td>' +
+        '<td>' + tot.bus_msk + '</td><td>' + tot.bus_klr + '</td>' +
+        '<td>' + tot.BK + '</td><td>' + tot.BS + '</td><td>' + tot.BB + '</td>' +
+        kolomMPUTot +
+        '<td>' + tot.seat + '</td><td>' + tot.penumpang + '</td><td>' + totalLF + '</td>' +
+        '<td>' + tot.pnp_turun + '</td><td>' + tot.pnp_naik + '</td>' +
+        '<td>' + tot.laik + '</td><td>' + tot.tidak_laik + '</td>' +
+        '<td></td>' +
+      '</tr></tfoot></table>' +
+
+      // TTD
+      '<div class="ttd-area">' +
+        '<div class="ttd-inner">' +
+          '<p>Mengetahui,</p>' +
+          '<p>Plt. Kepala Seksi Angkutan BPSPP Wilayah V /</p>' +
+          '<p>Kepala Seksi Lalu Lintas BPSPP Wilayah V</p>' +
+          '<br><br><br>' +
+          '<p><strong>BAMBANG SETIARTO, S.Hut</strong></p>' +
+          '<p>Penata Tk. I</p>' +
+          '<p>NIP. 19720717 199803 1 006</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('isiLaporan').innerHTML = html;
+}
+
+  function cetakPDF() {
+    if (!document.getElementById('printArea')) {
+      showAlert('error', 'Preview dulu sebelum cetak!'); return;
+    }
+    window.print();
+  }
+
+  function cetakExcelBiasa() {
+    if (dataLaporan.length === 0) {
+      showAlert('error', 'Preview dulu sebelum download!'); return;
+    }
+    var terminal = document.getElementById('filterTerminal').value;
+    var layanan = document.getElementById('filterLayanan').value;
+    var bulan = document.getElementById('filterBulan').value;
+    var tahun = document.getElementById('filterTahun').value;
+    var isAKDP = layanan === 'AKDP';
+    var bulanNama = BULAN_NAMA[parseInt(bulan)];
+
+    var header = ['NO','TANGGAL','JUMLAH PO','MASUK','KELUAR','BK','BS','BB'];
+    if (isAKDP) header.push('MPU');
+    header = header.concat(['SEAT','PENUMPANG','LOAD FACTOR','TURUN','NAIK','LAIK JALAN','TDK LAIK','KETERANGAN']);
+
+    var csv = header.join(',') + '\n';
+    dataLaporan.forEach(function(r, i) {
+      var lf = Number(r.seat) > 0 ? ((Number(r.penumpang)/Number(r.seat))*100).toFixed(2)+'%' : '0%';
+      var row = [i+1, r.tanggal, r.jml_po, r.bus_msk, r.bus_klr, r.BK, r.BS, r.BB];
+      if (isAKDP) row.push(r.MPU);
+      row = row.concat([r.seat, r.penumpang, lf, r.pnp_turun, r.pnp_naik, r.laik_jalan, r.tidak_laik, '']);
+      csv += row.join(',') + '\n';
+    });
+
+    var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'Rekap_' + layanan + '_' + terminal + '_' + bulanNama + '_' + tahun + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function cetakExcelLengkap() {
+    var terminal = document.getElementById('filterTerminal').value;
+    var bulan = document.getElementById('filterBulan').value;
+    var tahun = document.getElementById('filterTahun').value;
+    var bulanNama = BULAN_NAMA[parseInt(bulan)];
+    var btn = document.getElementById('btnCetakSemua');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating...';
+    showAlert('info', '⏳ Sedang membuat file Excel lengkap... Mohon tunggu, proses ini memakan waktu 30-60 detik.');
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          showAlert('success', '✅ File siap! Klik link berikut untuk download: <a href="' + result.url + '" target="_blank" style="color:#1a237e;font-weight:bold;">Download ' + result.nama + '.xlsx</a>');
+          document.getElementById('alertSuccess').innerHTML = '✅ File siap! <a href="' + result.url + '" target="_blank" style="color:#1a237e;font-weight:bold;">Klik di sini untuk download ' + result.nama + '.xlsx</a>';
+          document.getElementById('alertSuccess').style.display = 'block';
+        } else {
+          showAlert('error', 'Gagal membuat file: ' + result.message);
+        }
+        btn.disabled = false;
+        btn.textContent = '📦 Cetak Keseluruhan (Excel)';
+      })
+      .withFailureHandler(function(err) {
+        showAlert('error', 'Error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '📦 Cetak Keseluruhan (Excel)';
+      })
+      .generateExcelLengkap(terminal, bulan, tahun);
+  }
+</script>
+
+</body>
+</html>

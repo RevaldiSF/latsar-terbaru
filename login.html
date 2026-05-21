@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Sistem Terminal</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #0d47a1 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-wrapper { width: 100%; max-width: 420px; padding: 20px; }
+    .login-header { text-align: center; margin-bottom: 30px; color: white; }
+    .login-header .icon { font-size: 60px; margin-bottom: 10px; }
+    .login-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 5px; }
+    .login-header p { font-size: 13px; opacity: 0.8; }
+    .login-card { background: white; border-radius: 16px; padding: 35px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .login-card h2 { font-size: 18px; color: #1a237e; margin-bottom: 25px; font-weight: 600; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 7px; }
+    .form-group input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color 0.3s; outline: none; }
+    .form-group input:focus { border-color: #1a237e; }
+    .btn-login { width: 100%; padding: 13px; background: linear-gradient(135deg, #1a237e, #0d47a1); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.3s; margin-top: 5px; }
+    .btn-login:hover { opacity: 0.9; }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+    .alert { padding: 10px 15px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; display: none; }
+    .alert-error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+    .alert-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .footer-text { text-align: center; color: white; font-size: 12px; margin-top: 20px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="login-header">
+    <div class="icon">🚌</div>
+    <h1>Sistem Pendataan Terminal</h1>
+    <p>BPSPP Wilayah V — Purbalingga & Banjarnegara</p>
+  </div>
+  <div class="login-card">
+  <h2>Silakan Login</h2>
+  <div class="alert alert-error" id="alertError"></div>
+  <div class="alert alert-success" id="alertSuccess"></div>
+  <div class="form-group">
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Masukkan username" />
+  </div>
+  <div class="form-group">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Masukkan password" onkeypress="if(event.key==='Enter') doLogin()" />
+  </div>
+  <button class="btn-login" id="btnLogin" onclick="doLogin()">Masuk</button>
+
+  <div style="display:flex;align-items:center;gap:10px;margin-top:18px;">
+    <div style="flex:1;height:1px;background:#e0e0e0;"></div>
+    <span style="font-size:12px;color:#aaa;">atau</span>
+    <div style="flex:1;height:1px;background:#e0e0e0;"></div>
+  </div>
+
+  <button onclick="masukSebagaiTamu()" style="width:100%;padding:11px;margin-top:12px;background:white;color:#1a237e;border:2px solid #1a237e;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='white'">
+    👁️ Lihat sebagai Tamu
+  </button>
+</div>
+  <div class="footer-text">Balai Pengelola Sarana Prasarana Perhubungan Wilayah V</div>
+</div>
+<script>
+  var SURL = '';
+  google.script.run.withSuccessHandler(function(url) {
+    SURL = url;
+  }).getScriptUrl();
+
+  function doLogin() {
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value.trim();
+    var btn = document.getElementById('btnLogin');
+    if (!username || !password) { showAlert('error', 'Username dan password wajib diisi!'); return; }
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
+    google.script.run
+      .withSuccessHandler(function(result) {
+  if (result.success) {
+    showAlert('success', 'Berhasil! Mengalihkan...');
+    // Selalu ke dashboard dulu, menu akan disesuaikan role otomatis
+    window.location.href = SURL + '?page=dashboard&token=' + result.token;
+  } else {
+    showAlert('error', result.message);
+    btn.disabled = false;
+    btn.textContent = 'Masuk';
+  }
+})
+      .withFailureHandler(function(err) {
+        showAlert('error', 'Terjadi kesalahan: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Masuk';
+      })
+      .login(username, password);
+  }
+
+  function showAlert(type, msg) {
+    document.getElementById('alertError').style.display = 'none';
+    document.getElementById('alertSuccess').style.display = 'none';
+    var el = document.getElementById('alert' + (type === 'error' ? 'Error' : 'Success'));
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function masukSebagaiTamu() {
+  var btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Memproses...';
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (result.success) {
+        function go() {
+          if (SURL) {
+            window.location.href = SURL + '?page=dashboard&token=' + result.token;
+          } else {
+            setTimeout(go, 100);
+          }
+        }
+        go();
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false;
+      btn.textContent = '👁️ Lihat sebagai Tamu';
+    })
+    .loginTamu();
+}
+</script>
+</body>
+</html>

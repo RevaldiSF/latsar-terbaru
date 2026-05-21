@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Input Data - Terminal Purbalingga</title>
+  <?!= include('styles') ?>
+</head>
+<body>
+  <script>var _token = '<?= token ?>';</script>
+  <div class="mobile-toggle" onclick="toggleSidebar()">☰</div>
+<div class="wrapper">
+  <?!= include('sidebar') ?>
+  <div class="main-content">
+    <div class="page-header">
+      <h1>🏢 Input Data Terminal Purbalingga</h1>
+      <p>Form input data arus kendaraan harian</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pilih Layanan</div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" id="btnAKAP" onclick="setLayanan('AKAP')">AKAP</button>
+        <button class="btn btn-secondary" id="btnAKDP" onclick="setLayanan('AKDP')">AKDP</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 Form Input Data</div>
+      <div class="alert alert-error" id="alertError"></div>
+      <div class="alert alert-success" id="alertSuccess"></div>
+
+      <div class="form-grid">
+        <div class="form-group"><label>Tanggal *</label><input type="date" id="tanggal" /></div>
+        <div class="form-group">
+          <label>Nomor Bus *</label>
+          <div style="position:relative;">
+            <input type="text" id="nomorBus" placeholder="Contoh: B 1234 XY" style="padding-right:36px;" />
+            <span id="nomorBusSpinner" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;">⏳</span>
+            <span id="nomorBusOK"      style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;">✅</span>
+          </div>
+          <small id="infoNomorBus" style="color:#1a237e;font-size:11px;"></small>
+        </div>
+        <div class="form-group"><label>Nama PO *</label><select id="namaPO" onchange="onPOChange()"><option value="">-- Pilih PO --</option></select></div>
+        <div class="form-group"><label>Koperasi</label><input type="text" id="koperasi" readonly /></div>
+        <div class="form-group"><label>Trayek *</label><select id="trayek"><option value="">-- Pilih PO dulu --</option></select></div>
+      </div>
+
+      <!-- Keterangan -->
+      <div style="margin-top:15px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:8px;">Keterangan</label>
+        <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="keterangan" value="" checked style="width:16px;height:16px;accent-color:#1a237e;" onchange="onKeteranganChange(this)"> Normal
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="keterangan" value="BERMALAM" style="width:16px;height:16px;accent-color:#e65100;" onchange="onKeteranganChange(this)"> 🌙 Bermalam
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="keterangan" value="MANUAL" style="width:16px;height:16px;accent-color:#757575;" onchange="onKeteranganChange(this)"> ✏️ Lainnya
+          </label>
+          <input type="text" id="keteranganManual" placeholder="Tulis keterangan..." style="display:none;padding:8px 10px;border:2px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;min-width:200px;" />
+        </div>
+      </div>
+
+      <!-- Jam -->
+      <div class="form-grid" style="margin-top:15px;">
+        <div class="form-group">
+          <label>Jam Datang *</label>
+          <input type="time" id="jamDatang" style="font-family:'Segoe UI',sans-serif;" />
+          <small id="infoJamDatang" style="color:#e65100;font-size:11px;display:none;">🌙 Bus bermalam — jam kosong</small>
+        </div>
+        <div class="form-group">
+          <label>Jam Berangkat</label>
+          <input type="time" id="jamBerangkat" style="font-family:'Segoe UI',sans-serif;" />
+          <small id="infoJamBerangkat" style="color:#e65100;font-size:11px;display:none;">🌙 Bus bermalam — jam kosong</small>
+        </div>
+      </div>
+
+      <!-- Sisa form -->
+      <div class="form-grid" style="margin-top:15px;">
+        <div class="form-group"><label>Jumlah Seat</label><input type="number" id="jmlSeat" min="0" value="0" /></div>
+        <div class="form-group"><label>Jumlah Penumpang</label><input type="number" id="jmlPnp" min="0" value="0" /></div>
+        <div class="form-group"><label>Penumpang Naik</label><input type="number" id="pnpNaik" min="0" value="0" /></div>
+        <div class="form-group"><label>Penumpang Turun</label><input type="number" id="pnpTurun" min="0" value="0" /></div>
+      </div>
+
+      <!-- Jenis Bus -->
+      <div style="margin-top:15px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:8px;">Jenis Bus *</label>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="jenisBus" value="BK" style="width:16px;height:16px;accent-color:#1a237e;"> BK
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="jenisBus" value="BS" style="width:16px;height:16px;accent-color:#1a237e;"> BS
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="jenisBus" value="BB" style="width:16px;height:16px;accent-color:#1a237e;"> BB
+          </label>
+          <label id="labelMPU" style="display:none;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="jenisBus" value="MPU" style="width:16px;height:16px;accent-color:#1a237e;"> MPU
+          </label>
+        </div>
+      </div>
+
+      <!-- Kondisi Kendaraan -->
+      <div style="margin-top:15px;">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:8px;">Kondisi Kendaraan *</label>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="kondisi" value="laik" style="width:16px;height:16px;accent-color:#2e7d32;"> ✅ Laik Jalan
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="kondisi" value="tidak_laik" style="width:16px;height:16px;accent-color:#c62828;"> ❌ Tidak Laik
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btnSimpan" onclick="simpanData()">💾 Simpan Data</button>
+        <button class="btn btn-secondary" onclick="resetForm()">🔄 Reset Form</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">👥 Input Data Pengunjung Harian</div>
+      <div class="alert alert-error" id="alertErrorPgj"></div>
+      <div class="alert alert-success" id="alertSuccessPgj"></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Tanggal *</label><input type="date" id="tglPengunjung" /></div>
+        <div class="form-group"><label>Jumlah Pengunjung *</label><input type="number" id="jmlPengunjung" min="0" value="0" /></div>
+        <div class="form-group"><label>Keterangan</label><input type="text" id="ketPengunjung" placeholder="Opsional" /></div>
+      </div>
+      <div style="margin-top:15px;">
+        <button class="btn btn-primary" onclick="simpanPengunjung()">💾 Simpan Pengunjung</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Data Harian</div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label>Filter Layanan</label>
+          <select id="filterLayananTabel">
+            <option value="Semua">Semua</option>
+            <option value="AKAP">AKAP</option>
+            <option value="AKDP">AKDP</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Tanggal Mulai</label><input type="date" id="filterTglMulai" /></div>
+        <div class="form-group"><label>Tanggal Akhir</label><input type="date" id="filterTglAkhir" /></div>
+        <div class="form-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="loadTabelHarian()">🔍 Cari</button></div>
+      </div>
+      <div class="table-wrapper">
+        <div class="loading" id="loadingTabel"><span class="spinner"></span> Memuat data...</div>
+        <table id="tabelHarian" style="display:none;">
+          <thead>
+            <tr>
+              <th>Tanggal</th><th>Jam Datang</th><th>Jam Berangkat</th><th>No Bus</th>
+              <th>Layanan</th><th>PO</th><th>Trayek</th><th>Jenis Bus</th>
+              <th>Seat</th><th>Pnp</th><th>Naik</th><th>Turun</th>
+              <th>Kondisi</th><th>Keterangan</th>
+            </tr>
+          </thead>
+          <tbody id="bodyHarian"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  var _session = {};
+  try { _session = JSON.parse('<?= session ?>'); } catch(e) {}
+
+  setActiveMenu('menuPurbalingga');
+
+  var TERMINAL = 'PURBALINGGA';
+  var layananAktif = 'AKAP';
+  var today = new Date().toISOString().split('T')[0];
+  // ── Autocomplete Nomor Bus ──────────────────────────────────────────
+  var _busTimer = null;
+  document.getElementById('nomorBus').addEventListener('input', function() {
+    clearTimeout(_busTimer);
+    var nomor = this.value.trim();
+    setBusStatus('');
+    if (nomor.length < 4) return;
+    _busTimer = setTimeout(function() {
+      setBusStatus('loading');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (!result || !result.found) { setBusStatus(''); return; }
+          autoFillDariNomorBus(result);
+          setBusStatus('ok');
+        })
+        .withFailureHandler(function() { setBusStatus(''); })
+        .getDataByNomorBus(nomor, TERMINAL, layananAktif);
+    }, 600);
+  });
+
+  function setBusStatus(state) {
+    var spinner = document.getElementById('nomorBusSpinner');
+    var ok      = document.getElementById('nomorBusOK');
+    var info    = document.getElementById('infoNomorBus');
+    if (!spinner) return;
+    spinner.style.display = state === 'loading' ? 'inline' : 'none';
+    ok.style.display      = state === 'ok'      ? 'inline' : 'none';
+    info.textContent      = state === 'ok' ? '✔ Data ditemukan dari riwayat' : '';
+  }
+
+  function autoFillDariNomorBus(result) {
+    // Set PO
+    var poSel = document.getElementById('namaPO');
+    var found = false;
+    for (var i = 0; i < poSel.options.length; i++) {
+      if (poSel.options[i].value === result.po_id) {
+        poSel.value = result.po_id;
+        found = true;
+        break;
+      }
+    }
+    if (!found) return; // PO tidak ada di dropdown layanan aktif
+
+    // Panggil onPOChange dengan callback untuk set trayek
+    onPOChange(function() {
+      var tSel = document.getElementById('trayek');
+      for (var j = 0; j < tSel.options.length; j++) {
+        if (tSel.options[j].value === result.trayek || tSel.options[j].text === result.trayek) {
+          tSel.value = tSel.options[j].value;
+          break;
+        }
+      }
+    });
+
+    // Fill koperasi & seat
+    document.getElementById('koperasi').value = result.koperasi;
+    document.getElementById('jmlSeat').value  = result.jml_seat || 0;
+
+    // Set jenis bus
+    if (result.jenis_bus) {
+      document.getElementsByName('jenisBus').forEach(function(r) {
+        r.checked = (r.value === result.jenis_bus);
+      });
+    }
+  }
+
+  document.getElementById('tanggal').value = today;
+  document.getElementById('tglPengunjung').value = today;
+  document.getElementById('filterTglMulai').value = today;
+  document.getElementById('filterTglAkhir').value = today;
+
+  setLayanan('AKAP');
+  loadTabelHarian();
+
+  function setLayanan(l) {
+    layananAktif = l;
+    document.getElementById('btnAKAP').className = l==='AKAP' ? 'btn btn-primary' : 'btn btn-secondary';
+    document.getElementById('btnAKDP').className = l==='AKDP' ? 'btn btn-primary' : 'btn btn-secondary';
+    var labelMPU = document.getElementById('labelMPU');
+    if (l === 'AKDP') {
+      labelMPU.style.display = 'flex';
+    } else {
+      labelMPU.style.display = 'none';
+      var radios = document.getElementsByName('jenisBus');
+      for (var i = 0; i < radios.length; i++) {
+        if (radios[i].value === 'MPU') radios[i].checked = false;
+      }
+    }
+    loadPO(l);
+  }
+
+  function loadPO(l) {
+    google.script.run.withSuccessHandler(function(data) {
+      var sel = document.getElementById('namaPO');
+      sel.innerHTML = '<option value="">-- Pilih PO --</option>';
+      data.forEach(function(po) {
+        sel.innerHTML += '<option value="'+po.po_id+'" data-koperasi="'+po.nama_koperasi+'">'+po.nama_po+'</option>';
+      });
+      sel.innerHTML += '<option value="MANUAL">-- Input Manual --</option>';
+      document.getElementById('koperasi').value = '';
+      document.getElementById('trayek').innerHTML = '<option value="">-- Pilih PO dulu --</option>';
+    }).getPOByLayanan(l, TERMINAL);
+  }
+
+  function onPOChange(callback) {
+    var sel = document.getElementById('namaPO');
+    var poId = sel.value;
+    var koperasi = sel.options[sel.selectedIndex].getAttribute('data-koperasi') || '';
+    if (poId === 'MANUAL') {
+      document.getElementById('koperasi').value = '';
+      document.getElementById('koperasi').removeAttribute('readonly');
+      document.getElementById('trayek').innerHTML = '<option value="MANUAL">-- Input Manual --</option>';
+      if (typeof callback === 'function') callback();
+      return;
+    }
+    document.getElementById('koperasi').setAttribute('readonly', true);
+    document.getElementById('koperasi').value = koperasi;
+    if (!poId) {
+      document.getElementById('trayek').innerHTML = '<option value="">-- Pilih PO dulu --</option>';
+      if (typeof callback === 'function') callback();
+      return;
+    }
+    google.script.run.withSuccessHandler(function(data) {
+      var tsel = document.getElementById('trayek');
+      tsel.innerHTML = '<option value="">-- Pilih Trayek --</option>';
+      data.forEach(function(t) {
+        tsel.innerHTML += '<option value="'+t.rute+'">'+t.rute+'</option>';
+      });
+      tsel.innerHTML += '<option value="MANUAL">-- Trayek Lain (Manual) --</option>';
+      if (typeof callback === 'function') callback();
+    }).getTrayekByPO(poId);
+  }
+
+  function getJenisBus() {
+    var radios = document.getElementsByName('jenisBus');
+    for (var i = 0; i < radios.length; i++) {
+      if (radios[i].checked) return radios[i].value;
+    }
+    return null;
+  }
+
+  function getKondisi() {
+    var radios = document.getElementsByName('kondisi');
+    for (var i = 0; i < radios.length; i++) {
+      if (radios[i].checked) return radios[i].value;
+    }
+    return null;
+  }
+
+  function onKeteranganChange(radio) {
+    var jamDatang = document.getElementById('jamDatang');
+    var jamBerangkat = document.getElementById('jamBerangkat');
+    var infoDatang = document.getElementById('infoJamDatang');
+    var infoBerangkat = document.getElementById('infoJamBerangkat');
+    var manualInput = document.getElementById('keteranganManual');
+
+    if (radio.value === 'BERMALAM') {
+      jamDatang.value = '';
+      jamDatang.disabled = true;
+      jamDatang.style.background = '#f5f5f5';
+      infoDatang.style.display = 'block';
+      jamBerangkat.value = '';
+      jamBerangkat.disabled = true;
+      jamBerangkat.style.background = '#f5f5f5';
+      infoBerangkat.style.display = 'block';
+      manualInput.style.display = 'none';
+      manualInput.value = '';
+    } else if (radio.value === 'MANUAL') {
+      jamDatang.disabled = false;
+      jamDatang.style.background = 'white';
+      infoDatang.style.display = 'none';
+      jamBerangkat.disabled = false;
+      jamBerangkat.style.background = 'white';
+      infoBerangkat.style.display = 'none';
+      manualInput.style.display = 'inline-block';
+    } else {
+      jamDatang.disabled = false;
+      jamDatang.style.background = 'white';
+      infoDatang.style.display = 'none';
+      jamBerangkat.disabled = false;
+      jamBerangkat.style.background = 'white';
+      infoBerangkat.style.display = 'none';
+      manualInput.style.display = 'none';
+      manualInput.value = '';
+    }
+  }
+
+  function getKeterangan() {
+    var radios = document.getElementsByName('keterangan');
+    for (var i = 0; i < radios.length; i++) {
+      if (radios[i].checked) {
+        if (radios[i].value === 'MANUAL') {
+          return document.getElementById('keteranganManual').value.trim();
+        }
+        return radios[i].value;
+      }
+    }
+    return '';
+  }
+
+  function simpanData() {
+    var poSel = document.getElementById('namaPO');
+    var poId = poSel.value;
+    if (!poId) return showAlert('error', 'PO wajib dipilih!');
+
+    var poNama = poId === 'MANUAL'
+      ? prompt('Masukkan nama PO:')
+      : poSel.options[poSel.selectedIndex].text;
+    if (!poNama) return;
+
+    var trayekVal = document.getElementById('trayek').value;
+    var trayekFinal = trayekVal === 'MANUAL' ? prompt('Masukkan trayek:') : trayekVal;
+    if (!trayekFinal) trayekFinal = '';
+
+    var tanggal = document.getElementById('tanggal').value;
+    var nomorBus = document.getElementById('nomorBus').value;
+    var keterangan = getKeterangan();
+
+    if (!tanggal) return showAlert('error', 'Tanggal wajib diisi!');
+    if (!nomorBus) return showAlert('error', 'Nomor bus wajib diisi!');
+
+    // Kalau bukan bermalam, jam datang wajib diisi
+    if (keterangan !== 'BERMALAM') {
+      var jamDatang = document.getElementById('jamDatang').value;
+      if (!jamDatang) return showAlert('error', 'Jam datang wajib diisi!');
+    }
+
+    var jenisBus = getJenisBus();
+    if (!jenisBus) return showAlert('error', 'Jenis bus wajib dipilih!');
+
+    var kondisi = getKondisi();
+    if (!kondisi) return showAlert('error', 'Kondisi kendaraan wajib dipilih!');
+
+    var BK = jenisBus === 'BK' ? 1 : 0;
+    var BS = jenisBus === 'BS' ? 1 : 0;
+    var BB = jenisBus === 'BB' ? 1 : 0;
+    var MPU = jenisBus === 'MPU' ? 1 : 0;
+    var laik = kondisi === 'laik' ? 1 : 0;
+    var tidak_laik = kondisi === 'tidak_laik' ? 1 : 0;
+
+    var formData = {
+      tanggal: tanggal,
+      jam_datang: document.getElementById('jamDatang').value,
+      jam_berangkat: document.getElementById('jamBerangkat').value,
+      terminal: TERMINAL,
+      layanan: layananAktif,
+      po_id: poId === 'MANUAL' ? 'MANUAL' : poId,
+      nama_po: poNama,
+      koperasi: document.getElementById('koperasi').value,
+      trayek: trayekFinal,
+      nomor_bus: nomorBus,
+      jml_po: 0,
+      BK: BK, BS: BS, BB: BB, MPU: MPU,
+      jml_seat: Number(document.getElementById('jmlSeat').value)||0,
+      jml_pnp: Number(document.getElementById('jmlPnp').value)||0,
+      pnp_naik: Number(document.getElementById('pnpNaik').value)||0,
+      pnp_turun: Number(document.getElementById('pnpTurun').value)||0,
+      laik: laik,
+      tidak_laik: tidak_laik,
+      keterangan: keterangan
+    };
+
+    var btn = document.getElementById('btnSimpan');
+    btn.disabled = true;
+    btn.textContent = '⏳ Menyimpan...';
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          showAlert('success', result.message);
+          resetForm();
+          loadTabelHarian();
+        } else {
+          showAlert('error', result.message);
+        }
+        btn.disabled = false;
+        btn.textContent = '💾 Simpan Data';
+      })
+      .withFailureHandler(function(err) {
+        showAlert('error', 'Gagal: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '💾 Simpan Data';
+      })
+      .saveDataHarian(formData, _token);
+  }
+
+  function resetForm() {
+    document.getElementById('tanggal').value = today;
+    document.getElementById('nomorBus').value = '';
+    setBusStatus('');
+    document.getElementById('namaPO').value = '';
+    document.getElementById('koperasi').value = '';
+    document.getElementById('trayek').innerHTML = '<option value="">-- Pilih PO dulu --</option>';
+
+    var jamDatang = document.getElementById('jamDatang');
+    var jamBerangkat = document.getElementById('jamBerangkat');
+    jamDatang.value = '';
+    jamDatang.disabled = false;
+    jamDatang.style.background = 'white';
+    jamBerangkat.value = '';
+    jamBerangkat.disabled = false;
+    jamBerangkat.style.background = 'white';
+    document.getElementById('infoJamDatang').style.display = 'none';
+    document.getElementById('infoJamBerangkat').style.display = 'none';
+
+    ['jmlSeat','jmlPnp','pnpNaik','pnpTurun'].forEach(function(id) {
+      document.getElementById(id).value = 0;
+    });
+
+    document.getElementsByName('jenisBus').forEach(function(r) { r.checked = false; });
+    document.getElementsByName('kondisi').forEach(function(r) { r.checked = false; });
+    document.getElementsByName('keterangan').forEach(function(r) { r.checked = false; });
+    document.getElementsByName('keterangan')[0].checked = true;
+    document.getElementById('keteranganManual').style.display = 'none';
+    document.getElementById('keteranganManual').value = '';
+  }
+
+  function simpanPengunjung() {
+    var tgl = document.getElementById('tglPengunjung').value;
+    var jml = document.getElementById('jmlPengunjung').value;
+    var ket = document.getElementById('ketPengunjung').value;
+    if (!tgl) return showAlertPgj('error', 'Tanggal wajib diisi!');
+    if (!jml || Number(jml) <= 0) return showAlertPgj('error', 'Jumlah pengunjung wajib diisi!');
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          showAlertPgj('success', result.message);
+          document.getElementById('jmlPengunjung').value = 0;
+          document.getElementById('ketPengunjung').value = '';
+        } else {
+          showAlertPgj('error', result.message);
+        }
+      })
+      .withFailureHandler(function(err) { showAlertPgj('error', 'Gagal: ' + err.message); })
+      .savePengunjung({ tanggal:tgl, terminal:TERMINAL, jumlah_pengunjung:Number(jml), keterangan:ket }, _token);
+  }
+
+  function loadTabelHarian() {
+    var layanan = document.getElementById('filterLayananTabel').value;
+    var tglMulai = document.getElementById('filterTglMulai').value;
+    var tglAkhir = document.getElementById('filterTglAkhir').value;
+
+    if (!tglMulai || !tglAkhir) {
+      alert('Tanggal filter harus diisi!');
+      return;
+    }
+
+    document.getElementById('loadingTabel').style.display = 'block';
+    document.getElementById('tabelHarian').style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        var tbody = document.getElementById('bodyHarian');
+        tbody.innerHTML = '';
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#777;padding:20px;">Belum ada data untuk filter ini</td></tr>';
+        } else {
+          data.forEach(function(r) {
+            var jenisBus = r.BK==1?'BK':r.BS==1?'BS':r.BB==1?'BB':r.MPU==1?'MPU':'-';
+            var kondisi = r.laik==1 ? '✅ Laik' : '❌ Tdk Laik';
+            var keterangan = r.keterangan || '-';
+            var ktStyle = keterangan === 'BERMALAM' ? 'color:#e65100;font-weight:600;' : '';
+            tbody.innerHTML += '<tr>' +
+              '<td>' + r.tanggal + '</td>' +
+              '<td>' + (r.jam_datang || '-') + '</td>' +
+              '<td>' + (r.jam_berangkat || '-') + '</td>' +
+              '<td>' + r.nomor_bus + '</td>' +
+              '<td><span class="badge badge-' + r.layanan.toLowerCase() + '">' + r.layanan + '</span></td>' +
+              '<td>' + r.nama_po + '</td>' +
+              '<td>' + r.trayek + '</td>' +
+              '<td>' + jenisBus + '</td>' +
+              '<td>' + r.jml_seat + '</td>' +
+              '<td>' + r.jml_pnp + '</td>' +
+              '<td>' + r.pnp_naik + '</td>' +
+              '<td>' + r.pnp_turun + '</td>' +
+              '<td>' + kondisi + '</td>' +
+              '<td style="' + ktStyle + '">' + keterangan + '</td>' +
+              '</tr>';
+          });
+        }
+        document.getElementById('loadingTabel').style.display = 'none';
+        document.getElementById('tabelHarian').style.display = 'table';
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById('loadingTabel').style.display = 'none';
+        document.getElementById('tabelHarian').style.display = 'table';
+        document.getElementById('bodyHarian').innerHTML =
+          '<tr><td colspan="14" style="text-align:center;color:red;padding:20px;">Error: ' + err.message + '</td></tr>';
+      })
+      .getDataHarian(TERMINAL, layanan, tglMulai, tglAkhir);
+  }
+
+  function showAlert(type, msg) {
+    document.getElementById('alertError').style.display = 'none';
+    document.getElementById('alertSuccess').style.display = 'none';
+    var el = document.getElementById('alert'+(type==='error'?'Error':'Success'));
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(function(){ el.style.display='none'; }, 4000);
+  }
+
+  function showAlertPgj(type, msg) {
+    document.getElementById('alertErrorPgj').style.display = 'none';
+    document.getElementById('alertSuccessPgj').style.display = 'none';
+    var el = document.getElementById('alert'+(type==='error'?'Error':'Success')+'Pgj');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(function(){ el.style.display='none'; }, 4000);
+  }
+
+  function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('active');
+  }
+</script>
+</body>
+</html>

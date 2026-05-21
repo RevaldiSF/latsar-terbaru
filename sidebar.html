@@ -1,0 +1,222 @@
+<div class="mobile-toggle" onclick="toggleSidebar()">☰</div>
+
+<div class="sidebar" id="mainSidebar">
+  <div class="sidebar-header">
+    <div class="logo">🚌</div>
+    <h3>Sistem Terminal Perhubungan</h3>
+    <p>BPSPP Wilayah V</p>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-name" id="sidebarNama">-</div>
+    <div class="user-terminal" id="sidebarTerminal">-</div>
+  </div>
+  <nav class="sidebar-menu">
+    <div class="menu-label">Menu Utama</div>
+    <a class="menu-item" id="menuDashboard" onclick="navigateTo('dashboard')">
+      <span class="icon">📊</span><span>Dashboard</span>
+    </a>
+    <div class="menu-label" id="labelInput">Input Data</div>
+    <a class="menu-item" id="menuPurbalingga" onclick="navigateTo('input_purbalingga')">
+      <span class="icon">🏢</span><span>Purbalingga</span>
+    </a>
+    <a class="menu-item" id="menuBanjarnegara" onclick="navigateTo('input_banjarnegara')">
+      <span class="icon">🏢</span><span>Banjarnegara</span>
+    </a>
+    <div class="menu-label" id="labelLaporan">Laporan</div>
+    <a class="menu-item" id="menuLaporan" onclick="navigateTo('laporan')">
+      <span class="icon">📄</span><span>Laporan</span>
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="btn-logout" onclick="showLogoutModal()">🚪 Logout</button>
+  </div>
+</div>
+
+<!-- Overlay untuk mobile -->
+<div id="sidebarOverlay" onclick="toggleSidebar()" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99;"></div>
+
+<!-- Nav Loading Overlay -->
+<div id="navOverlay">
+  <div class="nav-spinner"></div>
+  <div class="nav-overlay-text" id="navOverlayText">Memuat halaman...</div>
+</div>
+
+<!-- Modal Access Denied -->
+<div id="accessDeniedModal" style="display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;">
+  <div onclick="document.getElementById('accessDeniedModal').style.display='none'" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);"></div>
+  <div style="position:relative;background:white;border-radius:16px;padding:32px 28px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);text-align:center;animation:popIn 0.2s ease;">
+    <div style="font-size:48px;margin-bottom:12px;">🚫</div>
+    <div style="font-size:15px;font-weight:700;color:#c62828;margin-bottom:12px;">Akses Ditolak</div>
+    <div id="accessDeniedMsg" style="font-size:13px;color:#555;line-height:1.6;margin-bottom:24px;"></div>
+    <button onclick="document.getElementById('accessDeniedModal').style.display='none'" style="padding:10px 28px;border:none;background:#1a237e;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:white;">Oke, Mengerti</button>
+  </div>
+</div>
+
+<!-- Modal Logout -->
+<div id="logoutModal" style="display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;">
+  <div id="logoutBackdrop" onclick="hideLogoutModal()" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);"></div>
+  <div style="position:relative;background:white;border-radius:16px;padding:32px 28px;width:300px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);text-align:center;animation:popIn 0.2s ease;">
+    <div style="font-size:40px;margin-bottom:12px;">🚪</div>
+    <div style="font-size:16px;font-weight:700;color:#1a237e;margin-bottom:8px;">Konfirmasi Logout</div>
+    <div style="font-size:13px;color:#666;margin-bottom:24px;">Yakin mau keluar dari sistem?</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button onclick="hideLogoutModal()" style="flex:1;padding:10px;border:2px solid #e0e0e0;background:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#555;">Batal</button>
+      <button onclick="doLogout()" id="btnLogoutOK" style="flex:1;padding:10px;border:none;background:#c62828;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:white;">Ya, Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+if (typeof _token === 'undefined') var _token = '';
+var _SURL     = '';
+var _session  = {};
+var _nama     = '-';
+var _terminal = '-';
+var _role     = '';
+
+google.script.run.withSuccessHandler(function(url) {
+  _SURL = url;
+}).getScriptUrl();
+
+if (_token) {
+  google.script.run
+    .withSuccessHandler(function(session) {
+      if (session) {
+        _nama     = session.nama     || '-';
+        _terminal = session.terminal || '-';
+        _role     = session.role     || '';
+      }
+      applyRoleMenu();
+      updateSidebarUser();
+      if (typeof initSidebar === 'function') initSidebar();
+    })
+    .withFailureHandler(function() {
+      applyRoleMenu();
+      if (typeof initSidebar === 'function') initSidebar();
+    })
+    .validateSession(_token);
+} else {
+  applyRoleMenu();
+}
+
+function updateSidebarUser() {
+  var elNama = document.getElementById('sidebarNama');
+  var elTerm = document.getElementById('sidebarTerminal');
+  if (elNama) elNama.textContent = _nama;
+  if (elTerm) elTerm.textContent = _terminal;
+}
+
+function hide(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
+function applyRoleMenu() {
+  // Semua menu tampil untuk semua role
+  // Restriction ditangani saat klik via navigateTo
+  if (typeof initSidebar === 'function') initSidebar();
+}
+
+function canAccess(page) {
+  if (_role === 'admin') return true;
+   if (_role === 'tamu') {
+    hide('menuPurbalingga');
+    hide('menuBanjarnegara');
+    hide('menuLaporan');
+    hide('labelInput');
+    hide('labelLaporan');
+  }
+  if (_role === 'petugas') {
+    var allowed = ['dashboard', 'laporan'];
+    if (_terminal === 'PURBALINGGA')  allowed.push('input_purbalingga');
+    if (_terminal === 'BANJARNEGARA') allowed.push('input_banjarnegara');
+    return allowed.indexOf(page) !== -1;
+  }
+  return false;
+}
+
+function showAccessDenied(page) {
+  var namaTerminal = page === 'input_purbalingga' ? 'Purbalingga' : 'Banjarnegara';
+  var terminalKamu = _terminal === 'PURBALINGGA' ? 'Purbalingga' : 'Banjarnegara';
+  var modal = document.getElementById('accessDeniedModal');
+  var msg   = document.getElementById('accessDeniedMsg');
+  if (msg) msg.innerHTML =
+    'Akses ke menu ini tidak diizinkan.';
+  if (modal) modal.style.display = 'flex';
+}
+
+window.addEventListener('pageshow', function() {
+  var overlay = document.getElementById('navOverlay');
+  if (overlay) overlay.classList.remove('active');
+});
+
+function setActiveMenu(id) {
+  document.querySelectorAll('.menu-item').forEach(function(el) {
+    el.classList.remove('active');
+  });
+  var el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+function navigateTo(page) {
+  // Cek akses dulu
+  if (!canAccess(page)) {
+    showAccessDenied(page);
+    return;
+  }
+
+  var labels = {
+    dashboard:          '📊 Dashboard',
+    input_purbalingga:  '🏢 Terminal Purbalingga',
+    input_banjarnegara: '🏢 Terminal Banjarnegara',
+    laporan:            '📄 Laporan'
+  };
+  var overlay     = document.getElementById('navOverlay');
+  var overlayText = document.getElementById('navOverlayText');
+  if (overlay) {
+    if (overlayText) overlayText.textContent = 'Membuka ' + (labels[page] || page) + '...';
+    overlay.classList.add('active');
+  }
+  function go() {
+    if (_SURL) {
+      window.top.location.href = _SURL + '?page=' + page + '&token=' + _token;
+    } else {
+      setTimeout(go, 80);
+    }
+  }
+  go();
+}
+
+function showLogoutModal() {
+  document.getElementById('logoutModal').style.display = 'flex';
+}
+
+function hideLogoutModal() {
+  document.getElementById('logoutModal').style.display = 'none';
+}
+
+function doLogout() {
+  var btn = document.getElementById('btnLogoutOK');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Keluar...'; }
+  function goLogin() {
+    if (_SURL) {
+      window.top.location.href = _SURL + '?page=login';
+    } else {
+      setTimeout(goLogin, 80);
+    }
+  }
+  google.script.run
+    .withSuccessHandler(goLogin)
+    .withFailureHandler(goLogin)
+    .logout(_token);
+  setTimeout(goLogin, 3000);
+}
+
+function toggleSidebar() {
+  var sidebar = document.getElementById('mainSidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar || !overlay) return;
+  sidebar.classList.toggle('active');
+  overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+}
+</script>

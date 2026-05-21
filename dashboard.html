@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Sistem Terminal</title>
+  <?!= include('styles') ?>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+  <script>var _token = '<?= token ?>';</script>
+  <div class="mobile-toggle" onclick="toggleSidebar()">☰</div>
+<div class="wrapper">
+  <?!= include('sidebar') ?>
+  <div class="main-content">
+    <div class="page-header">
+      <h1>📊 Dashboard</h1>
+      <p id="tglHariIni"></p>
+    </div>
+
+    <!-- Filter -->
+    <div class="card">
+      <div class="filter-bar">
+        <div class="form-group">
+          <label>Terminal</label>
+          <select id="filterTerminal" onchange="loadDashboard()">
+            <option value="Semua">Semua Terminal</option>
+            <option value="PURBALINGGA">Purbalingga</option>
+            <option value="BANJARNEGARA">Banjarnegara</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Layanan</label>
+          <select id="filterLayanan" onchange="loadDashboard()">
+            <option value="Semua">AKAP & AKDP</option>
+            <option value="AKAP">AKAP</option>
+            <option value="AKDP">AKDP</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Bulan</label>
+          <select id="filterBulan" onchange="loadDashboard()">
+            <option value="1">Januari</option><option value="2">Februari</option>
+            <option value="3">Maret</option><option value="4">April</option>
+            <option value="5">Mei</option><option value="6">Juni</option>
+            <option value="7">Juli</option><option value="8">Agustus</option>
+            <option value="9">September</option><option value="10">Oktober</option>
+            <option value="11">November</option><option value="12">Desember</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tahun</label>
+          <select id="filterTahun" onchange="loadDashboard()"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-icon">🚌</div><div class="stat-value" id="statBusMsk">-</div><div class="stat-label">Total Bus Masuk</div></div>
+      <div class="stat-card green"><div class="stat-icon">👥</div><div class="stat-value" id="statPnp">-</div><div class="stat-label">Total Penumpang</div></div>
+      <div class="stat-card orange"><div class="stat-icon">📊</div><div class="stat-value" id="statLoadFactor">-</div><div class="stat-label">Rata-rata Load Factor</div></div>
+      <div class="stat-card purple"><div class="stat-icon">🏢</div><div class="stat-value" id="statPO">-</div><div class="stat-label">Total PO</div></div>
+      <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value" id="statLaik">-</div><div class="stat-label">Laik Jalan</div></div>
+      <div class="stat-card red"><div class="stat-icon">❌</div><div class="stat-value" id="statTidakLaik">-</div><div class="stat-label">Tidak Laik</div></div>
+      <div class="stat-card teal"><div class="stat-icon">🧍</div><div class="stat-value" id="statPengunjung">-</div><div class="stat-label">Total Pengunjung</div></div>
+    </div>
+
+    <!-- Charts row 1 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+      <div class="card">
+        <div class="card-title">📈 Grafik Bus Masuk Harian</div>
+        <canvas id="chartBus" height="200"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">👥 Grafik Penumpang Harian</div>
+        <canvas id="chartPnp" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart pengunjung -->
+    <div class="card">
+      <div class="card-title">🧍 Grafik Pengunjung Harian</div>
+      <canvas id="chartPengunjung" height="100"></canvas>
+    </div>
+
+    <!-- Tabel Rekap Bulanan -->
+    <div class="card">
+      <div class="card-title">📋 Rekap Bulanan</div>
+      <div class="table-wrapper">
+        <div class="loading" id="loadingRekap"><span class="spinner"></span> Memuat data...</div>
+        <table id="tabelRekap" style="display:none;">
+          <thead>
+            <tr>
+              <th>Tanggal</th><th>Terminal</th><th>Layanan</th><th>Jml PO</th>
+              <th>Bus Msk</th><th>Bus Klr</th><th>BK</th><th>BS</th><th>BB</th><th>MPU</th>
+              <th>Seat</th><th>Penumpang</th><th>Load Factor</th>
+              <th>Pnp Naik</th><th>Pnp Turun</th><th>Laik</th><th>Tdk Laik</th>
+            </tr>
+          </thead>
+          <tbody id="bodyRekap"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div id="loader">
+  <div class="loader-spin"></div>
+</div>
+<script>
+  // Session dari server
+  var _session = {};
+  try { _session = JSON.parse('<?= session ?>'); } catch(e) {}
+
+  setActiveMenu('menuDashboard');
+
+  var now = new Date();
+  document.getElementById('tglHariIni').textContent = now.toLocaleDateString('id-ID', {
+    weekday:'long', year:'numeric', month:'long', day:'numeric'
+  });
+
+  var tahunSelect = document.getElementById('filterTahun');
+  for (var y = now.getFullYear(); y >= 2024; y--) {
+    var opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    tahunSelect.appendChild(opt);
+  }
+  document.getElementById('filterBulan').value = now.getMonth() + 1;
+  document.getElementById('filterTahun').value = now.getFullYear();
+
+  var chartBus = null, chartPnp = null, chartPengunjung = null;
+
+  function loadDashboard() {
+    var terminal = document.getElementById('filterTerminal').value;
+    var layanan = document.getElementById('filterLayanan').value;
+    var bulan = document.getElementById('filterBulan').value;
+    var tahun = document.getElementById('filterTahun').value;
+
+    document.getElementById('loadingRekap').style.display = 'block';
+    document.getElementById('tabelRekap').style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(data) { renderDashboard(data); })
+      .withFailureHandler(function(err) {
+        document.getElementById('loadingRekap').style.display = 'none';
+        console.error('Error rekap:', err.message);
+      })
+      .getRekapBulanan(terminal, layanan, bulan, tahun);
+
+    google.script.run
+      .withSuccessHandler(function(data) { renderPengunjung(data, terminal); })
+      .withFailureHandler(function(err) { console.error('Error pengunjung:', err.message); })
+      .getRekapPengunjungDashboard(terminal, bulan, tahun);
+  }
+
+  function renderDashboard(data) {
+    var totalBus=0, totalPnp=0, totalSeat=0, totalLaik=0, totalTidakLaik=0, totalPO=0;
+    var perTanggal = {};
+
+    data.forEach(function(r) {
+      totalBus += Number(r.bus_msk)||0;
+      totalPnp += Number(r.penumpang)||0;
+      totalSeat += Number(r.seat)||0;
+      totalLaik += Number(r.laik_jalan)||0;
+      totalTidakLaik += Number(r.tidak_laik)||0;
+      totalPO = Math.max(totalPO, Number(r.jml_po)||0);
+      if (!perTanggal[r.tanggal]) perTanggal[r.tanggal] = {bus:0, pnp:0};
+      perTanggal[r.tanggal].bus += Number(r.bus_msk)||0;
+      perTanggal[r.tanggal].pnp += Number(r.penumpang)||0;
+    });
+
+    var avgLF = totalSeat > 0 ? ((totalPnp/totalSeat)*100).toFixed(1)+'%' : '0%';
+    document.getElementById('statBusMsk').textContent = totalBus.toLocaleString('id-ID');
+    document.getElementById('statPnp').textContent = totalPnp.toLocaleString('id-ID');
+    document.getElementById('statLoadFactor').textContent = avgLF;
+    document.getElementById('statPO').textContent = totalPO;
+    document.getElementById('statLaik').textContent = totalLaik.toLocaleString('id-ID');
+    document.getElementById('statTidakLaik').textContent = totalTidakLaik.toLocaleString('id-ID');
+
+    var sortedTgl = Object.keys(perTanggal).sort(function(a,b) {
+      var da=a.split('/'), db=b.split('/');
+      return new Date(da[2],da[1]-1,da[0]) - new Date(db[2],db[1]-1,db[0]);
+    });
+
+    var labelGrafik = document.getElementById('filterTerminal').value === 'Semua' ? 'Gabungan' : document.getElementById('filterTerminal').value;
+
+    if (chartBus) chartBus.destroy();
+    chartBus = new Chart(document.getElementById('chartBus'), {
+      type: 'bar',
+      data: { labels: sortedTgl, datasets: [{ label: labelGrafik, data: sortedTgl.map(function(t){return perTanggal[t].bus;}), backgroundColor: 'rgba(26,35,126,0.7)', borderRadius: 4 }] },
+      options: { responsive: true, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    if (chartPnp) chartPnp.destroy();
+    chartPnp = new Chart(document.getElementById('chartPnp'), {
+      type: 'line',
+      data: { labels: sortedTgl, datasets: [{ label: labelGrafik, data: sortedTgl.map(function(t){return perTanggal[t].pnp;}), borderColor: '#2e7d32', backgroundColor: 'rgba(46,125,50,0.1)', tension: 0.4, fill: true }] },
+      options: { responsive: true, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    var tbody = document.getElementById('bodyRekap');
+    tbody.innerHTML = '';
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;color:#777;padding:20px;">Belum ada data</td></tr>';
+    } else {
+      data.forEach(function(r) {
+        tbody.innerHTML += '<tr>' +
+          '<td>'+r.tanggal+'</td><td>'+r.terminal+'</td>' +
+          '<td><span class="badge badge-'+r.layanan.toLowerCase()+'">'+r.layanan+'</span></td>' +
+          '<td>'+r.jml_po+'</td><td>'+r.bus_msk+'</td><td>'+r.bus_klr+'</td>' +
+          '<td>'+r.BK+'</td><td>'+r.BS+'</td><td>'+r.BB+'</td><td>'+r.MPU+'</td>' +
+          '<td>'+r.seat+'</td><td>'+r.penumpang+'</td><td>'+r.load_factor+'%</td>' +
+          '<td>'+r.pnp_naik+'</td><td>'+r.pnp_turun+'</td>' +
+          '<td>'+r.laik_jalan+'</td><td>'+r.tidak_laik+'</td>' +
+          '</tr>';
+      });
+    }
+    document.getElementById('loadingRekap').style.display = 'none';
+    document.getElementById('tabelRekap').style.display = 'table';
+  }
+
+  function renderPengunjung(data, terminal) {
+    var totalPengunjung = 0;
+    var perTanggal = {};
+    data.forEach(function(r) {
+      totalPengunjung += Number(r.jumlah_pengunjung)||0;
+      if (!perTanggal[r.tanggal]) perTanggal[r.tanggal] = 0;
+      perTanggal[r.tanggal] += Number(r.jumlah_pengunjung)||0;
+    });
+    document.getElementById('statPengunjung').textContent = totalPengunjung.toLocaleString('id-ID');
+
+    var sortedTgl = Object.keys(perTanggal).sort(function(a,b) {
+      var da=a.split('/'), db=b.split('/');
+      return new Date(da[2],da[1]-1,da[0]) - new Date(db[2],db[1]-1,db[0]);
+    });
+
+    var labelGrafik = terminal === 'Semua' ? 'Gabungan' : terminal;
+    if (chartPengunjung) chartPengunjung.destroy();
+    chartPengunjung = new Chart(document.getElementById('chartPengunjung'), {
+      type: 'bar',
+      data: {
+        labels: sortedTgl,
+        datasets: [{ label: 'Pengunjung - '+labelGrafik, data: sortedTgl.map(function(t){return perTanggal[t];}), backgroundColor: 'rgba(0,105,92,0.7)', borderRadius: 4 }]
+      },
+      options: { responsive: true, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>
